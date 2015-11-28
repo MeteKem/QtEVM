@@ -37,14 +37,17 @@ bool buildLaplacianPyramid(const cv::Mat &img, const int levels,
     }
     pyramid.clear();
     cv::Mat currentImg = img;
+    gpu::GpuMat d_currentImg(currentImg);
     for (int l=0; l<levels; l++) {
-        cv::Mat down,up;
-        pyrDown(currentImg, down);
-        pyrUp(down, up, currentImg.size());
-        cv::Mat lap = currentImg - up;
+        gpu::GpuMat down,up;
+        gpu::pyrDown(d_currentImg, down);
+        gpu::pyrUp(down, up, d_currentImg.size());
+        gpu::GpuMat d_lap = d_currentImg - up;
+        cv::Mat lap(d_lap)
         pyramid.push_back(lap);
-        currentImg = down;
+        d_currentImg = down;
     }
+    currentImg(d_currentImg);
     pyramid.push_back(currentImg);
     return true;
 }

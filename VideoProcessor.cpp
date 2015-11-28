@@ -853,14 +853,16 @@ void VideoProcessor::motionMagnify()
         // read next frame if any
         if (!getNextFrame(input))
             break;
+        
+        gpu::GpuMat d_input(input);
 
-        input.convertTo(input, CV_32FC3, 1.0/255.0f);
+        d_input.convertTo(d_input, CV_32FC3, 1.0/255.0f);
 
         // 1. convert to Lab color space
-        cv::cvtColor(input, input, CV_BGR2Lab);
+        gpu::cvtColor(d_input, d_input, CV_BGR2Lab);
 
         // 2. spatial filtering one frame
-        cv::Mat s = input.clone();
+        Mat s(d_input.clone());
         spatialFilter(s, pyramid);
 
         // 3. temporal filtering one frame's pyramid
