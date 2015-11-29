@@ -859,7 +859,7 @@ void VideoProcessor::motionMagnify()
         d_input.convertTo(d_input, CV_32FC3, 1.0/255.0f);
 
         // 1. convert to Lab color space
-        cv:gpu::cvtColor(d_input, d_input, CV_BGR2Lab);
+        cv::gpu::cvtColor(d_input, d_input, CV_BGR2Lab);
 
         // 2. spatial filtering one frame
         cv::Mat s(d_input.clone());
