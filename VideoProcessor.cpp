@@ -854,15 +854,15 @@ void VideoProcessor::motionMagnify()
         if (!getNextFrame(input))
             break;
         
-        gpu::GpuMat d_input(input);
+        cv:gpu::GpuMat d_input(input);
 
         d_input.convertTo(d_input, CV_32FC3, 1.0/255.0f);
 
         // 1. convert to Lab color space
-        gpu::cvtColor(d_input, d_input, CV_BGR2Lab);
+        cv:gpu::cvtColor(d_input, d_input, CV_BGR2Lab);
 
         // 2. spatial filtering one frame
-        Mat s(d_input.clone());
+        cv::Mat s(d_input.clone());
         spatialFilter(s, pyramid);
 
         // 3. temporal filtering one frame's pyramid
@@ -914,10 +914,10 @@ void VideoProcessor::motionMagnify()
             s += motion;
 
         // 7. convert back to rgb color space and CV_8UC3
-        output = s.clone();
-        cv::cvtColor(output, output, CV_Lab2BGR);
-        output.convertTo(output, CV_8UC3, 255.0, 1.0/255.0);
-
+        cv::gpu::GpuMat d_output(s);
+        cv::gpu::cvtColor(d_output, d_output, CV_Lab2BGR);
+        d_output.convertTo(d_output, CV_8UC3, 255.0, 1.0/255.0);
+        d_output.download(output);
         // write the frame to the temp file
         tempWriter.write(output);
 

@@ -37,17 +37,17 @@ bool buildLaplacianPyramid(const cv::Mat &img, const int levels,
     }
     pyramid.clear();
     cv::Mat currentImg = img;
-    gpu::GpuMat d_currentImg(currentImg);
+    cv::gpu::GpuMat d_currentImg(currentImg);
     for (int l=0; l<levels; l++) {
-        gpu::GpuMat down,up;
-        gpu::pyrDown(d_currentImg, down);
-        gpu::pyrUp(down, up, d_currentImg.size());
-        gpu::GpuMat d_lap = d_currentImg - up;
+        cv::gpu::GpuMat down,up;
+        cv::gpu::pyrDown(d_currentImg, down);
+        cv::gpu::pyrUp(down, up, d_currentImg.size());
+        cv::gpu::GpuMat d_lap = d_currentImg - up;
         cv::Mat lap(d_lap)
         pyramid.push_back(lap);
         d_currentImg = down;
     }
-    currentImg(d_currentImg);
+    d_currentImg.download(currentImg);
     pyramid.push_back(currentImg);
     return true;
 }
@@ -92,12 +92,18 @@ void reconImgFromLaplacianPyramid(const std::vector<cv::Mat> &pyramid,
                                   cv::Mat &dst)
 {
     cv::Mat currentImg = pyramid[levels];
+    cv::gpu::GpuMat d_currentImg(currentImg);
     for (int l=levels-1; l>=0; l--) {
-        cv::Mat up;
-        cv::pyrUp(currentImg, up, pyramid[l].size());
-        currentImg = up + pyramid[l];
+        cv::gpu::GpuMat up;
+        cv::gpu::pyrUp(d_currentImg, up, pyramid[l].size());
+        
+        cv::gpu::GpuMat pyrTemp(pyramid[l]);
+        d_currentImg = up + pyrTemp;
     }
-    dst = currentImg.clone();
+    d_currentImg.download(dst);
+    //if the line above causes errors, try the two lines below instead
+//    d_currentImg.download(currentImg);
+//    dst = currentImg.clone();
 }
 
 /** 
