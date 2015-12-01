@@ -854,7 +854,7 @@ void VideoProcessor::motionMagnify()
         if (!getNextFrame(input))
             break;
         
-        cv:gpu::GpuMat d_input(input);
+        cv::gpu::GpuMat d_input(input);
 
         d_input.convertTo(d_input, CV_32FC3, 1.0/255.0f);
 

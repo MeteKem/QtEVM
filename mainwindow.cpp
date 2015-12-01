@@ -20,6 +20,7 @@
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <Windows.h>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -533,7 +534,12 @@ void MainWindow::on_motion_triggered()
         // change the cursor
         QApplication::setOverrideCursor(Qt::WaitCursor);
         // run the process
+        int start, end; // struct used to compute execution time
+        start = (int)GetTickCount();  // set starting point
         video->motionMagnify();
+        end = (int)GetTickCount();
+           printf("%ld\n", \
+                        (end-start));
         // restore the cursor
         QApplication::restoreOverrideCursor();
     }

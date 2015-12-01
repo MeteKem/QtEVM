@@ -30,16 +30,26 @@ FORMS    += mainwindow.ui \
 RESOURCES += \
     myResources.qrc
 
-unix {
-    CONFIG += link_pkgconfig
-    PKGCONFIG += opencv
-}
-Win32 {
-INCLUDEPATH += C:\OpenCV2.2\include\
-LIBS += -LC:\OpenCV2.2\lib \
-    -lopencv_core220 \
-    -lopencv_highgui220 \
-    -lopencv_imgproc220 \
-    -lopencv_features2d220 \
-    -lopencv_calib3d220
+CONFIG += c++11
+INCLUDEPATH += "C:\Users\queens1\Desktop\builds\opencv\install\include"
+DEPENDPATH += "C:\Users\queens1\Desktop\builds\opencv\install\include"
+
+debug{
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_core2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_core2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_highgui2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_imgproc2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_features2d2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_calib3d2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_imgproc2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_gpu2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_legacy2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_ml2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_objdetect2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_ocl2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_photo2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_stitching2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_video2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_videostab2412d.lib"
+LIBS += "C:\Users\queens1\Desktop\builds\opencv\lib\Debug\opencv_nonfree2412d.lib"
 }
