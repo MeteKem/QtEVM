@@ -209,7 +209,7 @@ private:
     // high cut-off
     float fh;
     // chromAttenuation
-    float chromAttenuation;
+    double chromAttenuation;
     // delta
     float delta;
     // extraggon factor
@@ -228,8 +228,8 @@ private:
     std::vector<std::string> tempFileList;
 
     // low pass filters for IIR
-    std::vector<cv::Mat> lowpass1;
-    std::vector<cv::Mat> lowpass2;
+    std::vector<cv::gpu::GpuMat> lowpass1;
+    std::vector<cv::gpu::GpuMat> lowpass2;
 
     // recalculate the number of frames in video
     // normally doesn't need it unless getLength()
@@ -247,31 +247,31 @@ private:
     bool createTemp(double framerate=0.0, bool isColor=true);
 
     // spatial filtering
-    bool spatialFilter(const cv::Mat &src, std::vector<cv::Mat> &pyramid);
+    bool spatialFilter(const cv::gpu::GpuMat &src, std::vector<cv::gpu::GpuMat> &pyramid);
 
     // temporal filtering
-    void temporalFilter(const cv::Mat &src,
-                        cv::Mat &dst);
+    void temporalFilter(const cv::gpu::GpuMat &src,
+                        cv::gpu::GpuMat &dst);
 
     // temporal IIR filtering
-    void temporalIIRFilter(const cv::Mat &src,
-                        cv::Mat &dst);
+    void temporalIIRFilter(const cv::gpu::GpuMat &src,
+                        cv::gpu::GpuMat &dst);
 
     // temporal ideal bandpass filtering
-    void temporalIdealFilter(const cv::Mat &src,
-                             cv::Mat &dst);
+    void temporalIdealFilter(const cv::gpu::GpuMat &src,
+                             cv::gpu::GpuMat &dst);
 
     // amplify motion
-    void amplify(const cv::Mat &src, cv::Mat &dst);
+    void amplify(const cv::gpu::GpuMat &src, cv::gpu::GpuMat &dst);
 
     // attenuate I, Q channels
-    void attenuate(cv::Mat &src, cv::Mat &dst);
+    void attenuate(cv::gpu::GpuMat &src, cv::gpu::GpuMat &dst);
 
     // concat images into a large Mat
-    void concat(const std::vector<cv::Mat> &frames, cv::Mat &dst);
+    void concat(const std::vector<cv::gpu::GpuMat> &frames, cv::gpu::GpuMat &dst);
 
     // de-concat the concatnate image into frames
-    void deConcat(const cv::Mat &src, const cv::Size &frameSize, std::vector<cv::Mat> &frames);
+    void deConcat(const cv::gpu::GpuMat &src, const cv::Size &frameSize, std::vector<cv::gpu::GpuMat> &frames);
 
     // create an ideal bandpass processor
     void createIdealBandpassFilter(cv::Mat &filter, double fl, double fh, double rate);

@@ -28,28 +28,24 @@
  *
  * @return true if success
  */
-bool buildLaplacianPyramid(const cv::Mat &img, const int levels,
-                           std::vector<cv::Mat> &pyramid)
+bool buildLaplacianPyramid(const cv::gpu::GpuMat &img, const int levels,
+                           std::vector<cv::gpu::GpuMat> &pyramid)
 {
     if (levels < 1){
         perror("Levels should be larger than 1");
         return false;
     }
     pyramid.clear();
-    cv::Mat currentImg = img;
-    cv::gpu::GpuMat d_currentImg;
-    d_currentImg.upload(currentImg);
+    cv::gpu::GpuMat currentImg = img;
     for (int l=0; l<levels; l++) {
         cv::gpu::GpuMat down,up;
-        cv::gpu::pyrDown(d_currentImg, down);
+        cv::gpu::pyrDown(currentImg, down);
         cv::gpu::pyrUp(down, up);
-        cv::gpu::GpuMat d_lap;
-        cv::gpu::subtract(d_currentImg, up, d_lap);
-        cv::Mat lap(d_lap);
+        cv::gpu::GpuMat lap;
+        cv::gpu::subtract(currentImg, up, lap);
         pyramid.push_back(lap);
-        d_currentImg = down;
+        currentImg = down;
     }
-    d_currentImg.download(currentImg);
     pyramid.push_back(currentImg);
     return true;
 }
@@ -63,26 +59,22 @@ bool buildLaplacianPyramid(const cv::Mat &img, const int levels,
  *
  * @return true if success
  */
-bool buildGaussianPyramid(const cv::Mat &img,
+bool buildGaussianPyramid(const cv::gpu::GpuMat &img,
                           const int levels,
-                          std::vector<cv::Mat> &pyramid)
+                          std::vector<cv::gpu::GpuMat> &pyramid)
 {
     if (levels < 1){
         perror("Levels should be larger than 1");
         return false;
     }
     pyramid.clear();
-    cv::Mat currentImg = img;
-    cv::gpu::GpuMat d_currentImg(currentImg);
+    cv::gpu::GpuMat currentImg = img;
     for (int l=0; l<levels; l++) {
         cv::gpu::GpuMat down;
-        cv::gpu::pyrDown(d_currentImg, down);
-        cv::Mat matDown;
-        down.upload(matDown);
-        pyramid.push_back(matDown);
-        d_currentImg = down;
+        cv::gpu::pyrDown(currentImg, down);
+        pyramid.push_back(down);
+        currentImg = down;
     }
-    d_currentImg.download(currentImg);
     return true;
 }
 
@@ -93,23 +85,18 @@ bool buildGaussianPyramid(const cv::Mat &img,
  * @param levels	-	levels of the pyramid
  * @param dst		-	destinate image
  */
-void reconImgFromLaplacianPyramid(const std::vector<cv::Mat> &pyramid,
+void reconImgFromLaplacianPyramid(const std::vector<cv::gpu::GpuMat> &pyramid,
                                   const int levels,
-                                  cv::Mat &dst)
+                                  cv::gpu::GpuMat &dst)
 {
-    cv::Mat currentImg = pyramid[levels];
-    cv::gpu::GpuMat d_currentImg(currentImg);
+    cv::gpu::GpuMat currentImg = pyramid[levels];
     for (int l=levels-1; l>=0; l--) {
         cv::gpu::GpuMat up;
-        cv::gpu::pyrUp(d_currentImg, up);
-        
-        cv::gpu::GpuMat pyrTemp(pyramid[l]);
-        cv::gpu::add(up, pyrTemp, d_currentImg);
+        cv::gpu::pyrUp(currentImg, up);
+        cv::gpu::add(up, pyramid[l] , currentImg);
     }
-    d_currentImg.download(dst);
     //if the line above causes errors, try the two lines below instead
-//    d_currentImg.download(currentImg);
-//    dst = currentImg.clone();
+    dst = currentImg.clone();
 }
 
 /** 
@@ -119,16 +106,15 @@ void reconImgFromLaplacianPyramid(const std::vector<cv::Mat> &pyramid,
  * @param levels	-	levels of the pyramid
  * @param dst		-	destinate image
  */
-void upsamplingFromGaussianPyramid(const cv::Mat &src,
+void upsamplingFromGaussianPyramid(const cv::gpu::GpuMat &src,
                                    const int levels,
-                                   cv::Mat &dst)
+                                   cv::gpu::GpuMat &dst)
 {
-    cv::Mat currentLevel = src.clone();
-    cv::gpu::GpuMat d_currentLevel(currentLevel);
+    cv::gpu::GpuMat currentLevel = src.clone();
     for (int i = 0; i < levels; ++i) {
         cv::gpu::GpuMat up;
-        cv::gpu::pyrUp(d_currentLevel, up);
-        d_currentLevel = up;
+        cv::gpu::pyrUp(currentLevel, up);
+        currentLevel = up;
     }
-    d_currentLevel.download(dst);
+    currentLevel.copyTo(dst);
 }

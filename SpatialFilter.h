@@ -25,19 +25,19 @@
 #include <stdio.h>
 
 // build a gaussian pyramid
-bool buildGaussianPyramid(const cv::Mat &img, const int levels,
-                           std::vector<cv::Mat> &pyramid);
+bool buildGaussianPyramid(const cv::gpu::GpuMat &img, const int levels,
+                           std::vector<cv::gpu::GpuMat> &pyramid);
 
 // build a laplacian pyramid
-bool buildLaplacianPyramid(const cv::Mat &img, const int levels,
-                           std::vector<cv::Mat> &pyramid);
+bool buildLaplacianPyramid(const cv::gpu::GpuMat &img, const int levels,
+                           std::vector<cv::gpu::GpuMat> &pyramid);
 
 // reconstruct an image from a laplacian pyramid
-void reconImgFromLaplacianPyramid(const std::vector<cv::Mat> &pyramid, const int levels,
-                                  cv::Mat &dst);
+void reconImgFromLaplacianPyramid(const std::vector<cv::gpu::GpuMat> &pyramid, const int levels,
+                                  cv::gpu::GpuMat &dst);
 
 // up-sampling an image from gaussian pyramid
-void upsamplingFromGaussianPyramid(const cv::Mat &src, const int levels,
-                                   cv::Mat &dst);
+void upsamplingFromGaussianPyramid(const cv::gpu::GpuMat &src, const int levels,
+                                   cv::gpu::GpuMat &dst);
 
 #endif // SPATIALFILTER_H

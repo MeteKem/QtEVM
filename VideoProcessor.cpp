@@ -178,7 +178,7 @@ void VideoProcessor::calculateLength()
  * @param src		-	source image 
  * @param pyramid	-	destinate pyramid
  */
-bool VideoProcessor::spatialFilter(const cv::Mat &src, std::vector<cv::Mat> &pyramid)
+bool VideoProcessor::spatialFilter(const cv::gpu::GpuMat &src, std::vector<cv::gpu::GpuMat> &pyramid)
 {
     switch (spatialType) {
     case LAPLACIAN:     // laplacian pyramid
@@ -199,8 +199,8 @@ bool VideoProcessor::spatialFilter(const cv::Mat &src, std::vector<cv::Mat> &pyr
  * @param src	-	source image
  * @param dst	-	destinate image
  */
-void VideoProcessor::temporalFilter(const cv::Mat &src,
-                                    cv::Mat &dst)
+void VideoProcessor::temporalFilter(const cv::gpu::GpuMat &src,
+                                    cv::gpu::GpuMat &dst)
 {
     switch(temporalType) {
     case IIR:       // IIR bandpass filter
@@ -222,14 +222,25 @@ void VideoProcessor::temporalFilter(const cv::Mat &src,
  * @param filtered	-	filtered result
  *
  */
-void VideoProcessor::temporalIIRFilter(const cv::Mat &src,
-                                    cv::Mat &dst)
+void VideoProcessor::temporalIIRFilter(const cv::gpu::GpuMat &src,
+                                    cv::gpu::GpuMat &dst)
 {
-    cv::Mat temp1 = (1-fh)*lowpass1[curLevel] + fh*src;
-    cv::Mat temp2 = (1-fl)*lowpass2[curLevel] + fl*src;
+    cv::gpu::GpuMat temp1;
+
+    cv::gpu::multiply(lowpass1[curLevel],1-fh,lowpass1[curLevel]);
+    cv::gpu::GpuMat temp_src = src.clone();
+    cv::gpu::multiply(temp_src,fh,temp_src);
+    cv::gpu::add(lowpass1[curLevel], temp_src, temp1);
+
+    cv::gpu::GpuMat temp2;
+    temp_src = src.clone();
+    cv::gpu::multiply(lowpass2[curLevel],1-fl,lowpass2[curLevel]);
+    cv::gpu::multiply(temp_src,fl,temp_src);
+    cv::gpu::add(lowpass2[curLevel], temp_src, temp2);
+
     lowpass1[curLevel] = temp1;
     lowpass2[curLevel] = temp2;
-    dst = lowpass1[curLevel] - lowpass2[curLevel];
+    cv::gpu::subtract(lowpass1[curLevel], lowpass2[curLevel], dst);
 }
 
 /** 
@@ -240,9 +251,12 @@ void VideoProcessor::temporalIIRFilter(const cv::Mat &src,
  * @param filtered	-	concatenate filtered result
  *
  */
-void VideoProcessor::temporalIdealFilter(const cv::Mat &src,
-                                          cv::Mat &dst)
+void VideoProcessor::temporalIdealFilter(const cv::gpu::GpuMat &t_src,
+                                          cv::gpu::GpuMat &t_dst)
 {
+    cv::Mat src(t_src);
+    cv::Mat dst(t_dst);
+
     cv::Mat channels[3];
 
     // split into 3 channels
@@ -284,26 +298,34 @@ void VideoProcessor::temporalIdealFilter(const cv::Mat &src,
     cv::normalize(dst, dst, 0, 1, CV_MINMAX);
 }
 
-/** 
+/**
  * amplify	-	ampilfy the motion
  *
  * @param filtered	- motion image
  */
-void VideoProcessor::amplify(const cv::Mat &src, cv::Mat &dst)
+void VideoProcessor::amplify(const cv::gpu::GpuMat &src, cv::gpu::GpuMat &dst)
 {
-    float currAlpha;    
+    float currAlpha;
+    cv::gpu::GpuMat actual_src = src.clone();
     switch (spatialType) {
-    case LAPLACIAN:        
+    case LAPLACIAN:
         //compute modified alpha for this level
         currAlpha = lambda/delta/8 - 1;
         currAlpha *= exaggeration_factor;
-        if (curLevel==levels || curLevel==0)     // ignore the highest and lowest frequency band
-            dst = src * 0;
-        else
-            dst = src * cv::min(alpha, currAlpha);
+
+        if (curLevel==levels || curLevel==0){
+            // ignore the highest and lowest frequency band
+            cv::gpu::multiply(actual_src, 0, actual_src);
+            dst = actual_src;
+        }
+        else{
+            cv::gpu::multiply(actual_src, cv::min(alpha, currAlpha), actual_src);
+            dst = actual_src;
+        }
         break;
     case GAUSSIAN:
-        dst = src * alpha;
+        cv::gpu::multiply(actual_src, alpha,actual_src);
+        dst = actual_src;
         break;
     default:
         break;
@@ -316,13 +338,13 @@ void VideoProcessor::amplify(const cv::Mat &src, cv::Mat &dst)
  * @param src	-	source image
  * @param dst   -   destinate image
  */
-void VideoProcessor::attenuate(cv::Mat &src, cv::Mat &dst)
+void VideoProcessor::attenuate(cv::gpu::GpuMat &src, cv::gpu::GpuMat &dst)
 {
-    cv::Mat planes[3];
-    cv::split(src, planes);
-    planes[1] = planes[1] * chromAttenuation;
-    planes[2] = planes[2] * chromAttenuation;
-    cv::merge(planes, 3, dst);
+    cv::gpu::GpuMat planes[3];
+    cv::gpu::split(src, planes);
+    planes[1].convertTo(planes[1], planes[1].type(), chromAttenuation);
+    planes[1].convertTo(planes[2], planes[2].type(), chromAttenuation);
+    cv::gpu::merge(planes, 3, dst);
 }
 
 
@@ -333,17 +355,17 @@ void VideoProcessor::attenuate(cv::Mat &src, cv::Mat &dst)
  * @param frames	-	frames of the video sequence
  * @param dst		-	destinate concatnate image
  */
-void VideoProcessor::concat(const std::vector<cv::Mat> &frames,
-                            cv::Mat &dst)
+void VideoProcessor::concat(const std::vector<cv::gpu::GpuMat> &frames,
+                            cv::gpu::GpuMat &dst)
 {
     cv::Size frameSize = frames.at(0).size();
-    cv::Mat temp(frameSize.width*frameSize.height, length-1, CV_32FC3);
+    cv::gpu::GpuMat temp(frameSize.width*frameSize.height, length-1, CV_32FC3);
     for (int i = 0; i < length-1; ++i) {
         // get a frame if any
-        cv::Mat input = frames.at(i);
+        cv::gpu::GpuMat input = frames.at(i);
         // reshape the frame into one column
-        cv::Mat reshaped = input.reshape(3, input.cols*input.rows).clone();
-        cv::Mat line = temp.col(i);
+        cv::gpu::GpuMat reshaped = input.reshape(3, input.cols*input.rows).clone();
+        cv::gpu::GpuMat line = temp.col(i);
         // save the reshaped frame to one column of the destinate big image
         reshaped.copyTo(line);
     }
@@ -357,13 +379,13 @@ void VideoProcessor::concat(const std::vector<cv::Mat> &frames,
  * @param framesize	-	frame size
  * @param frames	-	destinate frames
  */
-void VideoProcessor::deConcat(const cv::Mat &src,
+void VideoProcessor::deConcat(const cv::gpu::GpuMat &src,
                               const cv::Size &frameSize,
-                              std::vector<cv::Mat> &frames)
+                              std::vector<cv::gpu::GpuMat> &frames)
 {
     for (int i = 0; i < length-1; ++i) {    // get a line if any
-        cv::Mat line = src.col(i).clone();
-        cv::Mat reshaped = line.reshape(3, frameSize.height).clone();
+        cv::gpu::GpuMat line = src.col(i).clone();
+        cv::gpu::GpuMat reshaped = line.reshape(3, frameSize.height).clone();
         frames.push_back(reshaped);
     }
 }
@@ -393,7 +415,7 @@ void VideoProcessor::createIdealBandpassFilter(cv::Mat &filter, double fl, doubl
                 response = 1.0f;
             else
                 response = 0.0f;
-            filter.at<float>(i, j) = response;
+            filter.at<double>(i, j) = response;
         }
     }
 }
@@ -828,10 +850,10 @@ void VideoProcessor::motionMagnify()
     cv::Mat output;
 
     // motion image
-    cv::Mat motion;
+    cv::gpu::GpuMat motion;
 
-    std::vector<cv::Mat> pyramid;
-    std::vector<cv::Mat> filtered;
+    std::vector<cv::gpu::GpuMat> pyramid;
+    std::vector<cv::gpu::GpuMat> filtered;
 
     // if no capture device has been set
     if (!isOpened())
@@ -862,7 +884,7 @@ void VideoProcessor::motionMagnify()
         cv::gpu::cvtColor(d_input, d_input, CV_BGR2Lab);
 
         // 2. spatial filtering one frame
-        cv::Mat s(d_input.clone());
+        cv::gpu::GpuMat s = d_input.clone();
         spatialFilter(s, pyramid);
 
         // 3. temporal filtering one frame's pyramid
@@ -911,10 +933,10 @@ void VideoProcessor::motionMagnify()
 
         // 6. combine source frame and motion image
         if (fnumber > 0)    // don't amplify first frame
-            s += motion;
+            cv::gpu::add(s, motion, s);
 
         // 7. convert back to rgb color space and CV_8UC3
-        cv::gpu::GpuMat d_output(s);
+        cv::gpu::GpuMat d_output = s.clone();
         cv::gpu::cvtColor(d_output, d_output, CV_Lab2BGR);
         d_output.convertTo(d_output, CV_8UC3, 255.0, 1.0/255.0);
         d_output.download(output);
@@ -959,21 +981,21 @@ void VideoProcessor::colorMagnify()
     cv::Mat output;
     // motion image
 
-    cv::Mat motion;
+    cv::gpu::GpuMat motion;
     // temp image
-    cv::Mat temp;
+    cv::gpu::GpuMat temp;
 
     // video frames
-    std::vector<cv::Mat> frames;
+    std::vector<cv::gpu::GpuMat> frames;
     // down-sampled frames
-    std::vector<cv::Mat> downSampledFrames;
+    std::vector<cv::gpu::GpuMat> downSampledFrames;
     // filtered frames
-    std::vector<cv::Mat> filteredFrames;
+    std::vector<cv::gpu::GpuMat> filteredFrames;
 
     // concatenate image of all the down-sample frames
-    cv::Mat videoMat;
+    cv::gpu::GpuMat videoMat;
     // concatenate filtered image
-    cv::Mat filtered;
+    cv::gpu::GpuMat filtered;
 
     // if no capture device has been set
     if (!isOpened())
@@ -993,10 +1015,11 @@ void VideoProcessor::colorMagnify()
 
     // 1. spatial filtering
     while (getNextFrame(input) && !isStop()) {
-        input.convertTo(temp, CV_32FC3);
+        cv::gpu::GpuMat d_input(input);
+        d_input.convertTo(temp, CV_32FC3);
         frames.push_back(temp.clone());
         // spatial filtering
-        std::vector<cv::Mat> pyramid;
+        std::vector<cv::gpu::GpuMat> pyramid;
         spatialFilter(temp, pyramid);
         downSampledFrames.push_back(pyramid.at(levels-1));
         // update process
@@ -1029,11 +1052,11 @@ void VideoProcessor::colorMagnify()
     // and write into video
     fnumber = 0;
     for (int i=0; i<length-1 && !isStop(); ++i) {
-        // up-sample the motion image        
+        // up-sample the motion image
         upsamplingFromGaussianPyramid(filteredFrames.at(i), levels, motion);
-	resize(motion, motion, frames.at(i).size());
-        temp = frames.at(i) + motion;
-        output = temp.clone();
+    resize(motion, motion, frames.at(i).size());
+    cv::gpu::add(frames.at(i), motion, temp);
+        temp.download(output);
         double minVal, maxVal;
         minMaxLoc(output, &minVal, &maxVal); //find minimum and maximum intensities
         output.convertTo(output, CV_8UC3, 255.0/(maxVal - minVal),
